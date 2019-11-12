@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Management.Automation;
 using System.Net.Http;
+using System.Threading;
 using Newtonsoft.Json;
 using osu.Framework;
 using osu.Framework.IO.Network;
@@ -118,7 +119,7 @@ namespace osu.Desktop.Deploy
                 case RuntimeInfo.Platform.Windows:
                     getAssetsFromRelease(lastRelease);
 
-                    runCommand("dotnet", $"publish -f netcoreapp2.2 -r win-x64 {ProjectName} -o {stagingPath} --configuration Release /p:Version={version}");
+                    runCommand("dotnet", $"publish -f netcoreapp3.0 -r win-x64 {ProjectName} -o {stagingPath} --configuration Release /p:Version={version}");
 
                     // change subsystem of dotnet stub to WINDOWS (defaults to console; no way to change this yet https://github.com/dotnet/core-setup/issues/196)
                     runCommand("tools/editbin.exe", $"/SUBSYSTEM:WINDOWS {stagingPath}\\osu!.exe");
@@ -164,6 +165,7 @@ namespace osu.Desktop.Deploy
                     File.Copy(Path.Combine(releases_folder, "Setup.exe"), Path.Combine(releases_folder, "install.exe"), true);
                     File.Delete(Path.Combine(releases_folder, "Setup.exe"));
                     break;
+
                 case RuntimeInfo.Platform.MacOsx:
 
                     // unzip the template app, with all structure existing except for dotnet published content.
@@ -171,20 +173,38 @@ namespace osu.Desktop.Deploy
 
                     runCommand("dotnet", $"publish -r osx-x64 {ProjectName} --configuration Release -o {stagingPath}/osu!.app/Contents/MacOS /p:Version={version}");
 
+                    string stagingApp = $"{stagingPath}/osu!.app";
+                    string zippedApp = $"{releasesPath}/osu!.app.zip";
+
                     // correct permissions post-build. dotnet outputs 644 by default; we want 755.
-                    runCommand("chmod", $"-R 755 {stagingPath}/osu!.app");
+                    runCommand("chmod", $"-R 755 {stagingApp}");
 
                     // sign using apple codesign
-                    runCommand("codesign", $"--deep --force --verify --verbose --sign \"{CodeSigningCertificate}\" {stagingPath}/osu!.app");
+                    runCommand("codesign", $"--deep --force --verify --verbose --sign \"{CodeSigningCertificate}\" {stagingApp}");
 
                     // check codesign was successful
-                    runCommand("spctl", $"--assess -vvvv {stagingPath}/osu!.app");
+                    runCommand("spctl", $"--assess -vvvv {stagingApp}");
 
                     // package for distribution
-                    runCommand("ditto", $"-ck --rsrc --keepParent --sequesterRsrc {stagingPath}/osu!.app {releasesPath}/osu!.app.zip");
+                    runCommand("ditto", $"-ck --rsrc --keepParent --sequesterRsrc {stagingApp} {zippedApp}");
+
+                    // upload for notarisation
+                    runCommand("xcrun", $"altool --notarize-app --primary-bundle-id \"sh.ppy.osu.lazer\" --username \"{ConfigurationManager.AppSettings["AppleUsername"]}\" --password \"{ConfigurationManager.AppSettings["ApplePassword"]}\" --file {zippedApp}");
+
+                    // TODO: make this actually wait properly
+                    write("Waiting for notarisation to complete..");
+                    Thread.Sleep(60000 * 10);
+
+                    // staple notarisation result
+                    runCommand("xcrun", $"stapler staple {stagingApp}");
+
+                    File.Delete(zippedApp);
+
+                    // repackage for distribution
+                    runCommand("ditto", $"-ck --rsrc --keepParent --sequesterRsrc {stagingApp} {zippedApp}");
                     break;
 
-                    case RuntimeInfo.Platform.Linux:
+                case RuntimeInfo.Platform.Linux:
 
                     //runCommand("rm",$"-rf {stagingPath}/osu.AppDir/"); //we clean this for next build (for example: changing dir structure). Delete if unneded
 
@@ -452,6 +472,8 @@ namespace osu.Desktop.Deploy
 
         private static bool runCommand(string command, string args, bool useSolutionPath = true)
         {
+            write($"Running {command} {args}...");
+
             var psi = new ProcessStartInfo(command, args)
             {
                 WorkingDirectory = useSolutionPath ? solutionPath : Environment.CurrentDirectory,
