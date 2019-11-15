@@ -205,7 +205,7 @@ namespace osu.Desktop.Deploy
                     break;
 
                 case RuntimeInfo.Platform.Linux:
-                    // requires linux system with dotnet, rsync, and curl
+                    // requires linux system with dotnet, rsync, and wget
                     // TODO:
                     // embed ffmpeg into appimage
                     // add appstream file
@@ -213,11 +213,11 @@ namespace osu.Desktop.Deploy
                     // add gpg signing
                     // make build process work on other architectures
 
-                    string currentPath = Directory.GetCurrentDirectory();
+                    string workingDirectory = Directory.GetCurrentDirectory();
 
                     // get appimagetool
-                    runCommand("wget", $"-nc https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -P {currentPath}/tools/");
-                    runCommand("chmod", $"-R 755 {currentPath}/tools/appimagetool-x86_64.AppImage");
+                    runCommand("wget", $"-nc https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -P {workingDirectory}/tools/");
+                    runCommand("chmod", $"-R 755 {workingDirectory}/tools/appimagetool-x86_64.AppImage");
 
                     runCommand("rm",$"-rf {stagingPath}/osu.AppDir/"); //we clean this for next build (for example: changing dir structure).
 
@@ -226,11 +226,15 @@ namespace osu.Desktop.Deploy
 
                     // add needed AppDir files
                     runCommand("chmod", $"-R 755 {stagingPath}/osu.AppDir/");
-                    runCommand("rsync", $"-av --progress {currentPath}/AppDir/ {stagingPath}/osu.AppDir/");
+                    runCommand("rsync", $"-av --progress {workingDirectory}/AppDir/ {stagingPath}/osu.AppDir/");
 
+                    // set enviroment vars and launch bash script
                     Environment.SetEnvironmentVariable("ARCH","x86_64"); // required for appimage
                     Environment.SetEnvironmentVariable("VERSION",version); // adds version in appimage
-                    //runCommand($"{currentPath}/tools/appimagetool-x86_64.AppImage", $" {stagingPath}/osu.AppDir"); // file dissappears when run in dotnet, works fine in bash with environment variables set.
+                    Environment.SetEnvironmentVariable("STAGING_PATH",stagingPath);
+                    Environment.SetEnvironmentVariable("RELEASES_PATH",releasesPath);
+                    Environment.SetEnvironmentVariable("WORKING_DIRECTORY",workingDirectory);
+                    runCommand("bash", $" {workingDirectory}/appimage_script.sh");
                     break;
 
             }
