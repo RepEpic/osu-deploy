@@ -205,45 +205,34 @@ namespace osu.Desktop.Deploy
                     break;
 
                 case RuntimeInfo.Platform.Linux:
+                    // requires linux system with dotnet, rsync, and curl
+                    // TODO:
+                    // embed ffmpeg into appimage
+                    // add appstream file
+                    // make self-updateable
+                    // add gpg signing
+                    // make build process work on other architectures
 
-                    //runCommand("rm",$"-rf {stagingPath}/osu.AppDir/"); //we clean this for next build (for example: changing dir structure). Delete if unneded
+                    string currentPath = Directory.GetCurrentDirectory();
 
+                    // get appimagetool
+                    runCommand("wget", $"-nc https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -P {currentPath}/tools/");
+                    runCommand("chmod", $"-R 755 {currentPath}/tools/appimagetool-x86_64.AppImage");
+
+                    runCommand("rm",$"-rf {stagingPath}/osu.AppDir/"); //we clean this for next build (for example: changing dir structure).
 
                     // need to add --self-contained flag for AppImage distribution.
+                    runCommand("dotnet", $"publish -r linux-x64 {ProjectName} --self-contained --configuration Release -o {stagingPath}/osu.AppDir/usr/bin/  /p:Version={version}");
 
-                    runCommand("dotnet", $"publish -r linux-x64 {ProjectName} --self-contained --configuration Release -o {stagingPath}/osu.AppDir/  /p:Version={version}");
-
-
-
+                    // add needed AppDir files
                     runCommand("chmod", $"-R 755 {stagingPath}/osu.AppDir/");
+                    runCommand("rsync", $"-av --progress {currentPath}/AppDir/ {stagingPath}/osu.AppDir/");
 
-
-
-                    runCommand("rsync", $"-av --progress AppDir/ {stagingPath}/osu.AppDir/");
-                    //TODO do we need to generate via code the appfiles?
-
-
-                    // uses the official AppImage Tools for creating AppImages.
-
-                    // see: https://github.com/AppImage/AppImageKit
-
-                    // make sure its in the same path as osu-deploy.
-
-                    runCommand("wget", "-nc https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage");
-
-                    
-
-                    runCommand("chmod", "-R 755 ./appimagetool-x86_64.AppImage");
-
-
-
-                    Environment.SetEnvironmentVariable("ARCH","x86_64"); //required for appimage
-                    runCommand("./appimagetool-x86_64.AppImage", $"--comp -s --sign-key {codeSigningCertPath} {stagingPath}/osu.AppDir");
-                    //cannot test this...
-
-                    
-                    //runCommand("./appimagetool-x86_64.AppImage", $" {stagingPath}/osu.AppDir");
+                    Environment.SetEnvironmentVariable("ARCH","x86_64"); // required for appimage
+                    Environment.SetEnvironmentVariable("VERSION",version); // adds version in appimage
+                    //runCommand($"{currentPath}/tools/appimagetool-x86_64.AppImage", $" {stagingPath}/osu.AppDir"); // file dissappears when run in dotnet, works fine in bash with environment variables set.
                     break;
+
             }
 
             if (GitHubUpload)

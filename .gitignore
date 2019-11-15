@@ -4,3 +4,5 @@ bin/*
 obj/*
 staging/*
 releases/*
+AppDir/.DirIcon
+tools/appimagetool-x86_64.AppImage
