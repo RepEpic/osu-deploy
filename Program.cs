@@ -208,7 +208,6 @@ namespace osu.Desktop.Deploy
                     // requires linux system with dotnet, rsync, and wget
                     // TODO:
                     // embed ffmpeg into appimage
-                    // add appstream file
                     // make self-updateable
                     // add gpg signing
                     // make build process work on other architectures
