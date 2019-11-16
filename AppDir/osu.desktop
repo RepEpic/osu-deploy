@@ -5,6 +5,5 @@ Name=osu
 Comment=rhythm is just a *click* away! 
 Icon=lazer
 Exec=osu!
-Path=~
 Terminal=true
-Categories=Development;
+Categories=Game;
