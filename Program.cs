@@ -207,11 +207,10 @@ namespace osu.Desktop.Deploy
                 case RuntimeInfo.Platform.Linux:
                     // requires linux system with dotnet, rsync, and wget
                     // TODO:
-                    // embed ffmpeg into appimage
-                    // add appstream file
                     // make self-updateable
                     // add gpg signing
                     // make build process work on other architectures
+                    // add appstream file
 
                     string workingDirectory = Directory.GetCurrentDirectory();
 
@@ -219,7 +218,7 @@ namespace osu.Desktop.Deploy
                     runCommand("wget", $"-nc https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -P {workingDirectory}/tools/");
                     runCommand("chmod", $"-R 755 {workingDirectory}/tools/appimagetool-x86_64.AppImage");
 
-                    runCommand("rm",$"-rf {stagingPath}/osu.AppDir/"); //we clean this for next build (for example: changing dir structure).
+                    runCommand("rm",$"-rf {stagingPath}/osu.AppDir/"); // we clean this for next build (for example: changing dir structure).
 
                     // need to add --self-contained flag for AppImage distribution.
                     runCommand("dotnet", $"publish -r linux-x64 {ProjectName} --self-contained --configuration Release -o {stagingPath}/osu.AppDir/usr/bin/  /p:Version={version}");
@@ -227,6 +226,12 @@ namespace osu.Desktop.Deploy
                     // add needed AppDir files
                     runCommand("chmod", $"-R 755 {stagingPath}/osu.AppDir/");
                     runCommand("rsync", $"-av --progress {workingDirectory}/AppDir/ {stagingPath}/osu.AppDir/");
+                    
+                    // get ffmpeg static and extract
+                    runCommand("wget", $"-nc https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -P {stagingPath}/");
+                    runCommand("tar", $"-xJvf {stagingPath}/ffmpeg-release-amd64-static.tar.xz --strip-components=1 -C {stagingPath}/");
+                    runCommand("rm", $"-f {stagingPath}/ffmpeg-release-amd64-static.tar.xz");
+                    runCommand("rm",$"-rf {stagingPath}/manpages/"); // remove unneeded manpages
 
                     // set enviroment vars and launch bash script
                     Environment.SetEnvironmentVariable("ARCH","x86_64"); // required for appimage
@@ -234,7 +239,8 @@ namespace osu.Desktop.Deploy
                     Environment.SetEnvironmentVariable("STAGING_PATH",stagingPath);
                     Environment.SetEnvironmentVariable("RELEASES_PATH",releasesPath);
                     Environment.SetEnvironmentVariable("WORKING_DIRECTORY",workingDirectory);
-                    runCommand("bash", $" {workingDirectory}/appimage_script.sh");
+                    runCommand("chmod", $"-R 755 {workingDirectory}/appimage_script.sh"); // make sure bash script is executable
+                    runCommand("bash", $"{workingDirectory}/appimage_script.sh");
                     break;
 
             }
