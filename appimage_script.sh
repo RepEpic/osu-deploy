@@ -21,5 +21,11 @@ mv $STAGING_PATH/model/ $STAGING_PATH/osu.AppDir/usr/local/share/model/
 
 # build appimage
 cd $WORKING_DIRECTORY
-$WORKING_DIRECTORY/tools/appimagetool-x86_64.AppImage $STAGING_PATH/osu.AppDir
+if [[ ! -z "${GITHUB_UPLOAD}" ]]
+then
+    $WORKING_DIRECTORY/tools/appimagetool-x86_64.AppImage -n -u "gh-releases-zsync|"$GITHUB_USERNAME"|"$GITHUB_REPONAME"|latest|osu-*x86_64.AppImage.zsync" $STAGING_PATH/osu.AppDir/
+    mv $WORKING_DIRECTORY/osu*.AppImage.zsync $RELEASES_PATH/
+else
+    $WORKING_DIRECTORY/tools/appimagetool-x86_64.AppImage -n $STAGING_PATH/osu.AppDir
+fi
 mv $WORKING_DIRECTORY/osu*.AppImage $RELEASES_PATH/

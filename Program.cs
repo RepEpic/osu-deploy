@@ -207,9 +207,8 @@ namespace osu.Desktop.Deploy
                 case RuntimeInfo.Platform.Linux:
                     // requires linux system with dotnet, rsync, and wget
                     // TODO:
-                    // make self-updateable
-                    // add gpg signing
                     // make build process work on other architectures
+                    // add gpg signature to appimages
                     // add appstream file
 
                     string workingDirectory = Directory.GetCurrentDirectory();
@@ -229,6 +228,9 @@ namespace osu.Desktop.Deploy
                     
                     // get ffmpeg static and extract
                     runCommand("wget", $"-nc https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -P {stagingPath}/");
+                    if (!File.Exists($@"{stagingPath}/ffmpeg-release-amd64-static.tar.xz")) {
+                        error("ffmpeg static tarball not found in staging folder.");
+                    }
                     runCommand("tar", $"-xJvf {stagingPath}/ffmpeg-release-amd64-static.tar.xz --strip-components=1 -C {stagingPath}/");
                     runCommand("rm", $"-f {stagingPath}/ffmpeg-release-amd64-static.tar.xz");
                     runCommand("rm",$"-rf {stagingPath}/manpages/"); // remove unneeded manpages
@@ -239,8 +241,24 @@ namespace osu.Desktop.Deploy
                     Environment.SetEnvironmentVariable("STAGING_PATH",stagingPath);
                     Environment.SetEnvironmentVariable("RELEASES_PATH",releasesPath);
                     Environment.SetEnvironmentVariable("WORKING_DIRECTORY",workingDirectory);
+                    if (GitHubUpload) { // set vars for appimage update info
+                        Environment.SetEnvironmentVariable("GITHUB_UPLOAD","true");
+                        Environment.SetEnvironmentVariable("GITHUB_USERNAME",GitHubUsername);
+                        Environment.SetEnvironmentVariable("GITHUB_REPONAME",GitHubRepoName);
+                    }
+
                     runCommand("chmod", $"-R 755 {workingDirectory}/appimage_script.sh"); // make sure bash script is executable
                     runCommand("bash", $"{workingDirectory}/appimage_script.sh");
+
+                    // make sure files are in release folder
+                    if (!File.Exists($@"{releasesPath}/osu-{version}-x86_64.AppImage")) {
+                        error("AppImage file not found in release folder.");
+                    }
+                    if (GitHubUpload) {
+                        if (!File.Exists($@"{releasesPath}/osu-{version}-x86_64.AppImage.zsync")) {
+                            error("zsync file not found in release folder.");
+                        }
+                    }
                     break;
 
             }
