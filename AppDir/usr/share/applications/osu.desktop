@@ -3,7 +3,7 @@
 Type=Application
 Name=osu
 Comment=rhythm is just a *click* away! 
-Icon=lazer
+Icon=osu
 Exec=osu!
 Terminal=true
 Categories=Game;

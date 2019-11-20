@@ -207,58 +207,61 @@ namespace osu.Desktop.Deploy
                 case RuntimeInfo.Platform.Linux:
                     // requires linux system with dotnet, rsync, and wget
                     // TODO:
-                    // make build process work on other architectures
-                    // add gpg signature to appimages
-                    // add appstream file
+                    //  add gpg signature to appimages
+                    //  add appstream file
 
-                    string workingDirectory = Directory.GetCurrentDirectory();
+                    string mainDirectory = Directory.GetCurrentDirectory();
 
-                    // get appimagetool
-                    runCommand("wget", $"-nc https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -P {workingDirectory}/tools/");
-                    runCommand("chmod", $"-R 755 {workingDirectory}/tools/appimagetool-x86_64.AppImage");
+                    // get appimagetool and ffmpeg
+                    runCommand("wget", $"-c https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -P {mainDirectory}/tools/");
+                    if (!File.Exists($@"{mainDirectory}/tools/appimagetool-x86_64.AppImage")) error("appimagetool not found in tools folder.");
 
-                    runCommand("rm",$"-rf {stagingPath}/osu.AppDir/"); // we clean this for next build (for example: changing dir structure).
+                    runCommand("chmod", $"-R 755 {mainDirectory}/tools/appimagetool-x86_64.AppImage");
+                    runCommand("wget", $"https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -P {stagingPath}/");
+                    if (!File.Exists($@"{stagingPath}/ffmpeg-release-amd64-static.tar.xz")) error("ffmpeg static tarball not found in staging folder.");
+
+                    // cleanup AppDir
+                    runCommand("rm",$"-rf {stagingPath}/osu.AppDir/");
 
                     // need to add --self-contained flag for AppImage distribution.
                     runCommand("dotnet", $"publish -r linux-x64 {ProjectName} --self-contained --configuration Release -o {stagingPath}/osu.AppDir/usr/bin/  /p:Version={version}");
-
-                    // add needed AppDir files
-                    runCommand("chmod", $"-R 755 {stagingPath}/osu.AppDir/");
-                    runCommand("rsync", $"-av --progress {workingDirectory}/AppDir/ {stagingPath}/osu.AppDir/");
                     
-                    // get ffmpeg static and extract
-                    runCommand("wget", $"-nc https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -P {stagingPath}/");
-                    if (!File.Exists($@"{stagingPath}/ffmpeg-release-amd64-static.tar.xz")) {
-                        error("ffmpeg static tarball not found in staging folder.");
-                    }
+                    // add app dir files
+                    runCommand("chmod", $"-R 755 {stagingPath}/osu.AppDir/");
+                    runCommand("rsync", $"-av --progress {mainDirectory}/AppDir/ {stagingPath}/osu.AppDir/");
+                    Directory.SetCurrentDirectory($"{stagingPath}/osu.AppDir");
+                    runCommand("ln",$"-s usr/share/applications/osu.desktop ./",false);
+                    runCommand("ln",$"-s usr/share/icons/hicolor/1024x1024/osu.png ./",false);
+                    Directory.SetCurrentDirectory(mainDirectory);
+
+                    // install ffmpeg static
                     runCommand("tar", $"-xJvf {stagingPath}/ffmpeg-release-amd64-static.tar.xz --strip-components=1 -C {stagingPath}/");
+                    File.AppendAllText($"{stagingPath}/readme.txt", System.IO.File.ReadAllText($"{stagingPath}/GPLv3.txt"));
+                    File.Move($"{stagingPath}/readme.txt",$"{stagingPath}/osu.AppDir/usr/share/ffmpeg-static_licence.txt");
+                    File.Move($"{stagingPath}/ffmpeg",$"{stagingPath}/osu.AppDir/usr/bin/ffmpeg");
+                    File.Move($"{stagingPath}/ffprobe",$"{stagingPath}/osu.AppDir/usr/bin/ffprobe");
+                    File.Move($"{stagingPath}/qt-faststart",$"{stagingPath}/osu.AppDir/usr/bin/qt-faststart");
                     runCommand("rm", $"-f {stagingPath}/ffmpeg-release-amd64-static.tar.xz");
                     runCommand("rm",$"-rf {stagingPath}/manpages/"); // remove unneeded manpages
+                    runCommand("rm",$"-rf {stagingPath}/model/");
+                    runCommand("rm", $"-f {stagingPath}/GPLv3.txt");
 
-                    // set enviroment vars and launch bash script
+                    // set enviroment vars and package osu
                     Environment.SetEnvironmentVariable("ARCH","x86_64"); // required for appimage
                     Environment.SetEnvironmentVariable("VERSION",version); // adds version in appimage
-                    Environment.SetEnvironmentVariable("STAGING_PATH",stagingPath);
-                    Environment.SetEnvironmentVariable("RELEASES_PATH",releasesPath);
-                    Environment.SetEnvironmentVariable("WORKING_DIRECTORY",workingDirectory);
-                    if (GitHubUpload) { // set vars for appimage update info
-                        Environment.SetEnvironmentVariable("GITHUB_UPLOAD","true");
-                        Environment.SetEnvironmentVariable("GITHUB_USERNAME",GitHubUsername);
-                        Environment.SetEnvironmentVariable("GITHUB_REPONAME",GitHubRepoName);
+                    if (GitHubUpload) { // if github upload is enabled, build appimage with zsync update info
+                        runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n -u gh-releases-zsync|${GitHubUsername}|${GitHubRepoName}|latest|osu-*-x86_64.AppImage.zsync {stagingPath}/osu.AppDir/",false);
+                        File.Move($"{mainDirectory}/osu-{version}-x86_64.AppImage.zsync",$"{releasesPath}/osu-{version}-x86_64.AppImage.zsync");
                     }
-
-                    runCommand("chmod", $"-R 755 {workingDirectory}/appimage_script.sh"); // make sure bash script is executable
-                    runCommand("bash", $"{workingDirectory}/appimage_script.sh");
+                    else
+                    {
+                        runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n {stagingPath}/osu.AppDir/",false);
+                    }
+                    File.Move($"{mainDirectory}/osu-{version}-x86_64.AppImage",$"{releasesPath}/osu-{version}-x86_64.AppImage");
 
                     // make sure files are in release folder
-                    if (!File.Exists($@"{releasesPath}/osu-{version}-x86_64.AppImage")) {
-                        error("AppImage file not found in release folder.");
-                    }
-                    if (GitHubUpload) {
-                        if (!File.Exists($@"{releasesPath}/osu-{version}-x86_64.AppImage.zsync")) {
-                            error("zsync file not found in release folder.");
-                        }
-                    }
+                    if (!File.Exists($@"{releasesPath}/osu-{version}-x86_64.AppImage")) error("AppImage file not found in release folder.");
+                    if (GitHubUpload) if (!File.Exists($@"{releasesPath}/osu-{version}-x86_64.AppImage.zsync")) error("zsync file not found in release folder.");
                     break;
 
             }
