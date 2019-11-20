@@ -205,9 +205,8 @@ namespace osu.Desktop.Deploy
                     break;
 
                 case RuntimeInfo.Platform.Linux:
-                    // requires linux system with dotnet, rsync, and wget
+                    // requires linux system with dotnet, rsync, and wget. setup gpg for signatures to be built into the appimage.
                     // TODO:
-                    //  add gpg signature to appimages
                     //  add appstream file
 
                     string mainDirectory = Directory.GetCurrentDirectory();
@@ -217,15 +216,12 @@ namespace osu.Desktop.Deploy
                     if (!File.Exists($@"{mainDirectory}/tools/appimagetool-x86_64.AppImage")) error("appimagetool not found in tools folder.");
 
                     runCommand("chmod", $"-R 755 {mainDirectory}/tools/appimagetool-x86_64.AppImage");
-                    runCommand("wget", $"https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -P {stagingPath}/");
+                    //runCommand("wget", $"https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -P {stagingPath}/");
                     if (!File.Exists($@"{stagingPath}/ffmpeg-release-amd64-static.tar.xz")) error("ffmpeg static tarball not found in staging folder.");
-
-                    // cleanup AppDir
-                    runCommand("rm",$"-rf {stagingPath}/osu.AppDir/");
 
                     // need to add --self-contained flag for AppImage distribution.
                     runCommand("dotnet", $"publish -r linux-x64 {ProjectName} --self-contained --configuration Release -o {stagingPath}/osu.AppDir/usr/bin/  /p:Version={version}");
-                    
+
                     // add app dir files
                     runCommand("chmod", $"-R 755 {stagingPath}/osu.AppDir/");
                     runCommand("rsync", $"-av --progress {mainDirectory}/AppDir/ {stagingPath}/osu.AppDir/");
@@ -236,27 +232,24 @@ namespace osu.Desktop.Deploy
 
                     // install ffmpeg static
                     runCommand("tar", $"-xJvf {stagingPath}/ffmpeg-release-amd64-static.tar.xz --strip-components=1 -C {stagingPath}/");
-                    File.AppendAllText($"{stagingPath}/readme.txt", System.IO.File.ReadAllText($"{stagingPath}/GPLv3.txt"));
+                    File.AppendAllText($"{stagingPath}/readme.txt", File.ReadAllText($"{stagingPath}/GPLv3.txt"));
                     File.Move($"{stagingPath}/readme.txt",$"{stagingPath}/osu.AppDir/usr/share/ffmpeg-static_licence.txt");
                     File.Move($"{stagingPath}/ffmpeg",$"{stagingPath}/osu.AppDir/usr/bin/ffmpeg");
                     File.Move($"{stagingPath}/ffprobe",$"{stagingPath}/osu.AppDir/usr/bin/ffprobe");
                     File.Move($"{stagingPath}/qt-faststart",$"{stagingPath}/osu.AppDir/usr/bin/qt-faststart");
-                    runCommand("rm", $"-f {stagingPath}/ffmpeg-release-amd64-static.tar.xz");
-                    runCommand("rm",$"-rf {stagingPath}/manpages/"); // remove unneeded manpages
-                    runCommand("rm",$"-rf {stagingPath}/model/");
-                    runCommand("rm", $"-f {stagingPath}/GPLv3.txt");
 
                     // set enviroment vars and package osu
                     Environment.SetEnvironmentVariable("ARCH","x86_64"); // required for appimage
                     Environment.SetEnvironmentVariable("VERSION",version); // adds version in appimage
                     if (GitHubUpload) { // if github upload is enabled, build appimage with zsync update info
-                        runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n -u gh-releases-zsync|${GitHubUsername}|${GitHubRepoName}|latest|osu-*-x86_64.AppImage.zsync {stagingPath}/osu.AppDir/",false);
+                        runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n -u gh-releases-zsync|${GitHubUsername}|${GitHubRepoName}|latest|osu-*-x86_64.AppImage.zsync {stagingPath}/osu.AppDir/ -s",false);
                         File.Move($"{mainDirectory}/osu-{version}-x86_64.AppImage.zsync",$"{releasesPath}/osu-{version}-x86_64.AppImage.zsync");
                     }
                     else
                     {
-                        runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n {stagingPath}/osu.AppDir/",false);
+                        runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n {stagingPath}/osu.AppDir/ -s",false);
                     }
+                    if (File.Exists($"{mainDirectory}/osu-{version}-x86_64.AppImage.digest")) File.Delete($"{mainDirectory}/osu-{version}-x86_64.AppImage.digest"); //remove gpg sign attempt file
                     File.Move($"{mainDirectory}/osu-{version}-x86_64.AppImage",$"{releasesPath}/osu-{version}-x86_64.AppImage");
 
                     // make sure files are in release folder
