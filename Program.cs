@@ -240,21 +240,20 @@ namespace osu.Desktop.Deploy
 
                     // set enviroment vars and package osu
                     Environment.SetEnvironmentVariable("ARCH","x86_64"); // required for appimage
-                    Environment.SetEnvironmentVariable("VERSION",version); // adds version in appimage
                     if (GitHubUpload) { // if github upload is enabled, build appimage with zsync update info
-                        runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n -u gh-releases-zsync|${GitHubUsername}|${GitHubRepoName}|latest|osu-*-x86_64.AppImage.zsync {stagingPath}/osu.AppDir/ -s",false);
-                        File.Move($"{mainDirectory}/osu-{version}-x86_64.AppImage.zsync",$"{releasesPath}/osu-{version}-x86_64.AppImage.zsync");
+                        runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n -u gh-releases-zsync|${GitHubUsername}|${GitHubRepoName}|latest|osu-x86_64.AppImage.zsync {stagingPath}/osu.AppDir/ -s",false);
+                        File.Move($"{mainDirectory}/osu-x86_64.AppImage.zsync",$"{releasesPath}/osu-x86_64.AppImage.zsync");
                     }
                     else
                     {
                         runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n {stagingPath}/osu.AppDir/ -s",false);
                     }
-                    if (File.Exists($"{mainDirectory}/osu-{version}-x86_64.AppImage.digest")) File.Delete($"{mainDirectory}/osu-{version}-x86_64.AppImage.digest"); //remove gpg sign attempt file
-                    File.Move($"{mainDirectory}/osu-{version}-x86_64.AppImage",$"{releasesPath}/osu-{version}-x86_64.AppImage");
+                    if (File.Exists($"{mainDirectory}/osu-x86_64.AppImage.digest")) File.Delete($"{mainDirectory}/osu-x86_64.AppImage.digest"); //remove gpg sign attempt file
+                    File.Move($"{mainDirectory}/osu-x86_64.AppImage",$"{releasesPath}/osu-x86_64.AppImage");
 
                     // make sure files are in release folder
-                    if (!File.Exists($@"{releasesPath}/osu-{version}-x86_64.AppImage")) error("AppImage file not found in release folder.");
-                    if (GitHubUpload) if (!File.Exists($@"{releasesPath}/osu-{version}-x86_64.AppImage.zsync")) error("zsync file not found in release folder.");
+                    if (!File.Exists($@"{releasesPath}/osu-x86_64.AppImage")) error("AppImage file not found in release folder.");
+                    if (GitHubUpload) if (!File.Exists($@"{releasesPath}/osu-x86_64.AppImage.zsync")) error("zsync file not found in release folder.");
                     break;
 
             }
