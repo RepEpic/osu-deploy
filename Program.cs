@@ -216,7 +216,7 @@ namespace osu.Desktop.Deploy
                     if (!File.Exists($@"{mainDirectory}/tools/appimagetool-x86_64.AppImage")) error("appimagetool not found in tools folder.");
 
                     runCommand("chmod", $"-R 755 {mainDirectory}/tools/appimagetool-x86_64.AppImage");
-                    //runCommand("wget", $"https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -P {stagingPath}/");
+                    runCommand("wget", $"https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -P {stagingPath}/");
                     if (!File.Exists($@"{stagingPath}/ffmpeg-release-amd64-static.tar.xz")) error("ffmpeg static tarball not found in staging folder.");
 
                     // need to add --self-contained flag for AppImage distribution.
