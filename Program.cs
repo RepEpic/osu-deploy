@@ -206,7 +206,6 @@ namespace osu.Desktop.Deploy
 
                 case RuntimeInfo.Platform.Linux:
                     // requires linux system with dotnet, rsync, and wget. gpg2 needs to be setup with a secret key for signatures to be built into the appimage.
-
                     string mainDirectory = Directory.GetCurrentDirectory();
 
                     // get appimagetool and ffmpeg
@@ -218,7 +217,7 @@ namespace osu.Desktop.Deploy
                     if (!File.Exists($@"{stagingPath}/ffmpeg-release-amd64-static.tar.xz")) error("ffmpeg static tarball not found in staging folder.");
 
                     // need to add --self-contained flag for AppImage distribution.
-                    runCommand("dotnet", $"publish -r linux-x64 {ProjectName} --self-contained --configuration Release -o {stagingPath}/osu.AppDir/usr/bin/  /p:Version={version}");
+                    runCommand("dotnet", $"publish -r linux-x64 {ProjectName} --self-contained --configuration Release -o {stagingPath}/osu.AppDir/usr/bin/osu/  /p:Version={version}");
 
                     // add AppDir files
                     runCommand("chmod", $"-R 755 {stagingPath}/osu.AppDir/");
