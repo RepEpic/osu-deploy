@@ -234,7 +234,7 @@ namespace osu.Desktop.Deploy
                     // package osu as AppImage
                     Environment.SetEnvironmentVariable("ARCH","x86_64"); // required for appimagetool
                     if (GitHubUpload) { // if github upload is enabled, build appimage with zsync update info
-                        runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n -u gh-releases-zsync|${GitHubUsername}|${GitHubRepoName}|latest|osu-x86_64.AppImage.zsync {stagingPath}/osu.AppDir/ -s",false);
+                        runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n -u gh-releases-zsync|{GitHubUsername}|{GitHubRepoName}|latest|osu-x86_64.AppImage.zsync {stagingPath}/osu.AppDir/ -s",false);
                         if (File.Exists($"{releasesPath}/osu-x86_64.AppImage.zsync")) File.Delete($"{releasesPath}/osu-x86_64.AppImage.zsync"); // prevent io exception if file already exists
                         File.Move($"{mainDirectory}/osu-x86_64.AppImage.zsync",$"{releasesPath}/osu-x86_64.AppImage.zsync");
                     }
