@@ -205,9 +205,7 @@ namespace osu.Desktop.Deploy
                     break;
 
                 case RuntimeInfo.Platform.Linux:
-                    // requires linux system with dotnet, rsync, and wget. setup gpg for signatures to be built into the appimage.
-                    // TODO:
-                    //  add appstream file
+                    // requires linux system with dotnet, rsync, and wget. gpg2 needs to be setup with a secret key for signatures to be built into the appimage.
 
                     string mainDirectory = Directory.GetCurrentDirectory();
 
@@ -222,7 +220,7 @@ namespace osu.Desktop.Deploy
                     // need to add --self-contained flag for AppImage distribution.
                     runCommand("dotnet", $"publish -r linux-x64 {ProjectName} --self-contained --configuration Release -o {stagingPath}/osu.AppDir/usr/bin/  /p:Version={version}");
 
-                    // add app dir files
+                    // add AppDir files
                     runCommand("chmod", $"-R 755 {stagingPath}/osu.AppDir/");
                     runCommand("rsync", $"-av --progress {mainDirectory}/AppDir/ {stagingPath}/osu.AppDir/");
                     Directory.SetCurrentDirectory($"{stagingPath}/osu.AppDir");
@@ -238,17 +236,19 @@ namespace osu.Desktop.Deploy
                     File.Move($"{stagingPath}/ffprobe",$"{stagingPath}/osu.AppDir/usr/bin/ffprobe");
                     File.Move($"{stagingPath}/qt-faststart",$"{stagingPath}/osu.AppDir/usr/bin/qt-faststart");
 
-                    // set enviroment vars and package osu
-                    Environment.SetEnvironmentVariable("ARCH","x86_64"); // required for appimage
+                    // package osu as AppImage
+                    Environment.SetEnvironmentVariable("ARCH","x86_64"); // required for appimagetool
                     if (GitHubUpload) { // if github upload is enabled, build appimage with zsync update info
                         runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n -u gh-releases-zsync|${GitHubUsername}|${GitHubRepoName}|latest|osu-x86_64.AppImage.zsync {stagingPath}/osu.AppDir/ -s",false);
+                        if (File.Exists($"{releasesPath}/osu-x86_64.AppImage.zsync")) File.Delete($"{releasesPath}/osu-x86_64.AppImage.zsync"); // prevent io exception if file already exists
                         File.Move($"{mainDirectory}/osu-x86_64.AppImage.zsync",$"{releasesPath}/osu-x86_64.AppImage.zsync");
                     }
                     else
                     {
                         runCommand($"{mainDirectory}/tools/appimagetool-x86_64.AppImage",$"-n {stagingPath}/osu.AppDir/ -s",false);
                     }
-                    if (File.Exists($"{mainDirectory}/osu-x86_64.AppImage.digest")) File.Delete($"{mainDirectory}/osu-x86_64.AppImage.digest"); //remove gpg sign attempt file
+                    if (File.Exists($"{mainDirectory}/osu-x86_64.AppImage.digest")) File.Delete($"{mainDirectory}/osu-x86_64.AppImage.digest"); // remove gpg sign attempt file
+                    if (File.Exists($"{releasesPath}/osu-x86_64.AppImage")) File.Delete($"{releasesPath}/osu-x86_64.AppImage"); // prevent io exception if file already exists
                     File.Move($"{mainDirectory}/osu-x86_64.AppImage",$"{releasesPath}/osu-x86_64.AppImage");
 
                     // make sure files are in release folder
