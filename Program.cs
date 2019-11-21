@@ -223,10 +223,6 @@ namespace osu.Desktop.Deploy
                     // add AppDir files
                     runCommand("chmod", $"-R 755 {stagingPath}/osu.AppDir/");
                     runCommand("rsync", $"-av --progress {mainDirectory}/AppDir/ {stagingPath}/osu.AppDir/");
-                    Directory.SetCurrentDirectory($"{stagingPath}/osu.AppDir");
-                    runCommand("ln",$"-s usr/share/applications/osu.desktop ./",false);
-                    runCommand("ln",$"-s usr/share/icons/hicolor/1024x1024/osu.png ./",false);
-                    Directory.SetCurrentDirectory(mainDirectory);
 
                     // install ffmpeg static
                     runCommand("tar", $"-xJvf {stagingPath}/ffmpeg-release-amd64-static.tar.xz --strip-components=1 -C {stagingPath}/");
