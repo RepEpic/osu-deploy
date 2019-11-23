@@ -5,5 +5,5 @@ Name=osu
 Comment=rhythm is just a *click* away! 
 Icon=osu
 Exec=osu!
-Terminal=true
+Terminal=false
 Categories=Game;
